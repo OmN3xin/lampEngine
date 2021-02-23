@@ -23,10 +23,10 @@ import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
 public abstract class Window {
+    protected String title = "Game";
     protected Vector3 backgroundcolor = new Vector3(0,0,0);
     private long window;
     public List<GameObject> objs;
-    public String title;
     public void run() {
 
         loop();
@@ -57,7 +57,7 @@ public abstract class Window {
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE); // the window will be resizable
 
         // Create the window
-        window = glfwCreateWindow(700, 700, "Hello World!", NULL, NULL);
+        window = glfwCreateWindow(700, 700, title, NULL, NULL);
         if ( window == NULL )
             throw new RuntimeException("Failed to create the GLFW window");
         // Setup a key callback. It will be called every time a key is pressed, repeated or released.
@@ -86,6 +86,7 @@ public abstract class Window {
                     (vidmode.width() - pWidth.get(0)) / 2,
                     (vidmode.height() - pHeight.get(0)) / 2
             );
+
         } // the stack frame is popped automatically
 
         // Make the OpenGL context current
@@ -133,52 +134,79 @@ public abstract class Window {
 
         // Run the rendering loop until the user has attempted to close
         // the window or has pressed the ESCAPE key.
-        float[] v = {
-                -1,-1,0,
-                1,-1,0,
-                1,1,0,
-                -1,1,0
-        };
 
-        FloatBuffer vBuff = BufferUtils.createFloatBuffer(v.length);
-        vBuff.put(v);
-        vBuff.flip();
+
+
         while ( !glfwWindowShouldClose(window) ) {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
             Update();
             for (GameObject obj : objs) {
-                glLoadIdentity();
-                float[] colors = new float[16];
-                int count = 0;
-                for (int i = 0;i<16;i++){
-
-                    if(count == 2){
-                        colors[i] = obj.color.c.z;
+                float v[] = new float[obj.s.v.length];
+                v = obj.s.v;
+                FloatBuffer vBuff = BufferUtils.createFloatBuffer(v.length);
+                vBuff.put(v);
+                vBuff.flip();
+                int vertsListed = 0;
+                int c = 0;
+                for(int i =0;i<v.length;i++){
+                    c++;
+                    if(c == 3){
+                        vertsListed++;
+                        c = 0;
                     }
-                    if(count == 1)
-                        colors[i] = obj.color.c.y;
-                    if(count == 0)
-                        colors[i] = obj.color.c.x;
-                    if(count == 3){
-                        colors[i] = 0;
-                        count = 0;
-                        continue;
-                    }
-
-                    count++;
                 }
+                glLoadIdentity();
+                float[] colors = new float[v.length+vertsListed];
+                if(obj.ImagePath == ""){
+                    int count = 0;
+                    for (int i = 0;i<colors.length;i++){
+
+                        if(count == 2){
+                            colors[i] = obj.color.c.z;
+                        }
+                        if(count == 1)
+                            colors[i] = obj.color.c.y;
+                        if(count == 0)
+                            colors[i] = obj.color.c.x;
+                        if(count == 3){
+                            if(!obj.visable)
+                                colors[i] = 0;
+                            else
+                                colors[i] = 255;
+                            count = 0;
+                            continue;
+                        }
+
+                        count++;
+                    }
+                }
+                else{
+
+                }
+
                 FloatBuffer cBuff = BufferUtils.createFloatBuffer(colors.length);
                 cBuff.put(colors);
                 cBuff.flip();
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                glEnable( GL_BLEND );
                 glEnableClientState(GL_VERTEX_ARRAY);
+                if(obj.ImagePath == "")
                 glEnableClientState(GL_COLOR_ARRAY);
                 Vector3 pos = obj.position;
                 Vector3 scale = obj.scale;
+                Vector3 rotation = obj.rotation;
                 glTranslatef(pos.x, pos.y, pos.z);
+                glRotatef(rotation.x,1,0,0);
+                glRotatef(rotation.y,0,1,0);
+                glRotatef(rotation.z,0,0,1);
                 glScalef(scale.x, scale.y, scale.z);
                 glVertexPointer(3, GL_FLOAT, 0, vBuff);
+
+                if(obj.ImagePath == "")
                 glColorPointer(4, GL_FLOAT, 0,cBuff);
-                glDrawArrays(GL_QUADS, 0, 4);
+                glDrawArrays(GL_POLYGON, 0, vertsListed);
+
+                if(obj.ImagePath == "")
                 glDisableClientState(GL_COLOR_ARRAY);
                 glDisableClientState(GL_VERTEX_ARRAY);
             }
